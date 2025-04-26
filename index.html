@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Yield-Farming Position Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+        margin: 20px;
+        background: #fafafa;
+        line-height: 1.5;
+      }
+      h2 {
+        margin-top: 30px;
+      }
+      label {
+        display: block;
+        margin-top: 10px;
+      }
+      input,
+      button {
+        padding: 6px;
+        margin-top: 4px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        background: #fff;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 6px;
+        text-align: left;
+      }
+      tr.selected {
+        background: #e0f7fa;
+      }
+
+      /* chart ≈½ width */
+      #chartContainer {
+        margin-top: 20px;
+        max-width: 600px;
+      }
+      canvas {
+        background: #fff;
+        border: 1px solid #ccc;
+        width: 100% !important;
+        height: auto !important;
+      }
+
+      .inline {
+        display: inline-block;
+        margin-right: 10px;
+      }
+      .warn {
+        color: #b00;
+        font-size: 0.9em;
+        margin-left: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      Yield-Farming Position Tracker
+      <span class="warn">(data not saved — export before closing!)</span>
+    </h1>
+
+    <!-- Add position -->
+    <section id="addPosition">
+      <h2>Add New Position</h2>
+      <label>Name <input id="posName" /></label>
+      <label>Initial Value <input id="posValue" type="number" /></label>
+      <label>Start Date <input id="posDate" type="date" /></label>
+      <button id="addBtn">Add Position</button>
+    </section>
+
+    <!-- Import / Export -->
+    <section>
+      <h2>Data File</h2>
+      <button id="exportBtn" class="inline">Export JSON</button>
+      <input
+        id="importFile"
+        type="file"
+        accept="application/json"
+        style="display: none"
+      />
+      <button id="importBtn" class="inline">Import JSON</button>
+    </section>
+
+    <!-- Table -->
+    <section>
+      <h2>Your Positions</h2>
+      <table id="positionsTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Initial</th>
+            <th>Start</th>
+            <th>Last Value</th>
+            <th>Last Yield</th>
+            <th>Last Update</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- Update panel -->
+    <section id="updateSection" style="display: none">
+      <h2>Update: <span id="updateTitle"></span></h2>
+      <label>Current Value (USD) <input id="updValue" type="number" /></label>
+      <label>Pending Yield (USD) <input id="updYield" type="number" /></label>
+      <button id="updBtn">Add Update</button>
+    </section>
+
+    <!-- Chart -->
+    <section id="chartContainer" style="display: none">
+      <h2>History: <span id="chartTitle"></span></h2>
+      <canvas id="positionChart"></canvas>
+    </section>
+
+    <script>
+      /* ========= Globals ========= */
+      const $ = (id) => document.getElementById(id);
+      let positions = []; // in-memory only
+      let selectedId = null;
+      let chart = null;
+
+      /* ========= Utilities ========= */
+      const fmt = (n) =>
+        Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+      const todayISO = () => new Date().toISOString().slice(0, 10);
+
+      /* ========= Table ========= */
+      function buildRow(p) {
+        const tr = document.createElement("tr");
+        if (p.id === selectedId) tr.classList.add("selected");
+        const last = p.updates.at(-1);
+        tr.innerHTML = `
+    <td>${p.name}</td>
+    <td>${fmt(p.initialValue)}</td>
+    <td>${new Date(p.startDate).toLocaleDateString()}</td>
+    <td>${fmt(last ? last.value : p.initialValue)}</td>
+    <td>${fmt(last ? last.pendingYield : 0)}</td>
+    <td>${last ? new Date(last.time).toLocaleString() : "—"}</td>
+    <td>
+      <button data-act="select">Select</button>
+      <button data-act="update">Update</button>
+      <button data-act="delete">Delete</button>
+    </td>`;
+        tr.querySelectorAll("button").forEach((btn) => {
+          btn.onclick = (e) => {
+            const act = e.target.dataset.act;
+            if (act === "select") selectPosition(p.id);
+            else if (act === "update") openUpdate(p.id);
+            else if (act === "delete") deletePosition(p.id);
+          };
+        });
+        return tr;
+      }
+      function refreshTable() {
+        const tbody = $("positionsTable").querySelector("tbody");
+        tbody.innerHTML = "";
+        positions.forEach((p) => tbody.appendChild(buildRow(p)));
+      }
+
+      /* ========= CRUD ========= */
+      function addPosition() {
+        const name = $("posName").value.trim();
+        const val = Number($("posValue").value);
+        const date = $("posDate").value || todayISO();
+        if (!name || !val) {
+          alert("Name and value required");
+          return;
+        }
+        positions.push({
+          id: Date.now().toString(),
+          name,
+          initialValue: val,
+          startDate: date,
+          updates: [],
+        });
+        refreshTable();
+        $("posName").value = "";
+        $("posValue").value = "";
+        $("posDate").value = "";
+      }
+      function deletePosition(id) {
+        const p = positions.find((x) => x.id === id);
+        if (!confirm(`Delete position “${p.name}”?`)) return;
+        positions = positions.filter((x) => x.id !== id);
+        if (selectedId === id) {
+          selectedId = null;
+          $("updateSection").style.display = "none";
+          $("chartContainer").style.display = "none";
+        }
+        refreshTable();
+      }
+      function openUpdate(id) {
+        selectedId = id;
+        $("updateSection").style.display = "block";
+        const p = positions.find((x) => x.id === id);
+        $("updateTitle").textContent = p.name;
+        $("updValue").value = "";
+        $("updYield").value = "";
+        selectPosition(id);
+      }
+      function addUpdate() {
+        const val = Number($("updValue").value);
+        const yld = Number($("updYield").value);
+        if (isNaN(val) || isNaN(yld)) {
+          alert("Numbers required");
+          return;
+        }
+        const p = positions.find((x) => x.id === selectedId);
+        p.updates.push({ time: Date.now(), value: val, pendingYield: yld });
+        refreshTable();
+        drawChart(p);
+        $("updValue").value = "";
+        $("updYield").value = "";
+      }
+
+      /* ========= Chart ========= */
+      function selectPosition(id) {
+        selectedId = id;
+        refreshTable();
+        const p = positions.find((x) => x.id === id);
+        $("chartTitle").textContent = p.name;
+        $("chartContainer").style.display = "block";
+        drawChart(p);
+      }
+      function drawChart(p) {
+        const labels = [new Date(p.startDate)];
+        const values = [p.initialValue];
+        const yields = [0];
+        p.updates.forEach((u) => {
+          labels.push(new Date(u.time));
+          values.push(u.value);
+          yields.push(u.pendingYield);
+        });
+        if (chart) chart.destroy();
+        chart = new Chart($("positionChart"), {
+          type: "line",
+          data: {
+            labels: labels.map(
+              (d) => d.toLocaleDateString() + " " + d.toLocaleTimeString()
+            ),
+            datasets: [
+              {
+                label: "Position Value",
+                data: values,
+                yAxisID: "y",
+                fill: false,
+              },
+              {
+                label: "Pending Yield",
+                data: yields,
+                yAxisID: "y1",
+                fill: false,
+                borderDash: [5, 5],
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            interaction: { mode: "index", intersect: false },
+            scales: {
+              x: { title: { display: true, text: "Date & Time" } },
+              y: { title: { display: true, text: "USD (Value)" } },
+              y1: {
+                title: { display: true, text: "USD (Yield)" },
+                position: "right",
+                grid: { drawOnChartArea: false },
+              },
+            },
+          },
+        });
+      }
+
+      /* ========= File I/O ========= */
+      function exportJSON() {
+        const blob = new Blob([JSON.stringify(positions, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "yield_positions.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      function importJSON(file) {
+        const r = new FileReader();
+        r.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target.result);
+            if (!Array.isArray(data)) throw "Invalid file";
+            positions = data;
+            selectedId = null;
+            refreshTable();
+            $("updateSection").style.display = "none";
+            $("chartContainer").style.display = "none";
+            alert("Import successful");
+          } catch (err) {
+            alert("Import failed: " + err);
+          }
+        };
+        r.readAsText(file);
+      }
+
+      /* ========= Events ========= */
+      $("addBtn").onclick = addPosition;
+      $("updBtn").onclick = addUpdate;
+      $("exportBtn").onclick = exportJSON;
+      $("importBtn").onclick = () => $("importFile").click();
+      $("importFile").onchange = (e) => {
+        if (e.target.files[0]) importJSON(e.target.files[0]);
+      };
+      $("posDate").valueAsDate = new Date();
+      refreshTable(); // start empty
+    </script>
+  </body>
+</html>
