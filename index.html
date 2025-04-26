@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <title>Yield-Farming Position Tracker</title>
+
+    <!-- Chart.js + time adapter -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
     <style>
       body {
         font-family: Arial, Helvetica, sans-serif;
@@ -60,6 +64,12 @@
         font-size: 0.9em;
         margin-left: 6px;
       }
+      #statsTable th {
+        text-align: center;
+      }
+      #statsTable td {
+        text-align: right;
+      }
     </style>
   </head>
   <body>
@@ -68,16 +78,18 @@
       <span class="warn">(data not saved — export before closing!)</span>
     </h1>
 
-    <!-- Add position -->
-    <section id="addPosition">
+    <!-- ── Add position ── -->
+    <section>
       <h2>Add New Position</h2>
       <label>Name <input id="posName" /></label>
       <label>Initial Value <input id="posValue" type="number" /></label>
-      <label>Start Date <input id="posDate" type="date" /></label>
+      <label
+        >Start (date & time) <input id="posStart" type="datetime-local"
+      /></label>
       <button id="addBtn">Add Position</button>
     </section>
 
-    <!-- Import / Export -->
+    <!-- ── Import / Export ── -->
     <section>
       <h2>Data File</h2>
       <button id="exportBtn" class="inline">Export JSON</button>
@@ -90,7 +102,7 @@
       <button id="importBtn" class="inline">Import JSON</button>
     </section>
 
-    <!-- Table -->
+    <!-- ── Positions table ── -->
     <section>
       <h2>Your Positions</h2>
       <table id="positionsTable">
@@ -109,7 +121,7 @@
       </table>
     </section>
 
-    <!-- Update panel -->
+    <!-- ── Update panel ── -->
     <section id="updateSection" style="display: none">
       <h2>Update: <span id="updateTitle"></span></h2>
       <label>Current Value (USD) <input id="updValue" type="number" /></label>
@@ -117,10 +129,28 @@
       <button id="updBtn">Add Update</button>
     </section>
 
-    <!-- Chart -->
+    <!-- ── Chart + stats ── -->
     <section id="chartContainer" style="display: none">
       <h2>History: <span id="chartTitle"></span></h2>
       <canvas id="positionChart"></canvas>
+
+      <!-- Stats table -->
+      <table id="statsTable">
+        <thead>
+          <tr>
+            <th>% Return (Value)</th>
+            <th>% Return (Yield)</th>
+            <th>Annualised Yield %</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td id="retValue">—</td>
+            <td id="retYield">—</td>
+            <td id="annYield">—</td>
+          </tr>
+        </tbody>
+      </table>
     </section>
 
     <script>
@@ -133,7 +163,13 @@
       /* ========= Utilities ========= */
       const fmt = (n) =>
         Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
-      const todayISO = () => new Date().toISOString().slice(0, 10);
+      const nowLocalISOmin = () => {
+        const z = (n) => String(n).padStart(2, "0"),
+          d = new Date();
+        return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(
+          d.getHours()
+        )}:${z(d.getMinutes())}`;
+      };
 
       /* ========= Table ========= */
       function buildRow(p) {
@@ -143,7 +179,7 @@
         tr.innerHTML = `
     <td>${p.name}</td>
     <td>${fmt(p.initialValue)}</td>
-    <td>${new Date(p.startDate).toLocaleDateString()}</td>
+    <td>${new Date(p.startDate).toLocaleString()}</td>
     <td>${fmt(last ? last.value : p.initialValue)}</td>
     <td>${fmt(last ? last.pendingYield : 0)}</td>
     <td>${last ? new Date(last.time).toLocaleString() : "—"}</td>
@@ -153,8 +189,8 @@
       <button data-act="delete">Delete</button>
     </td>`;
         tr.querySelectorAll("button").forEach((btn) => {
-          btn.onclick = (e) => {
-            const act = e.target.dataset.act;
+          const act = btn.dataset.act;
+          btn.onclick = () => {
             if (act === "select") selectPosition(p.id);
             else if (act === "update") openUpdate(p.id);
             else if (act === "delete") deletePosition(p.id);
@@ -172,22 +208,22 @@
       function addPosition() {
         const name = $("posName").value.trim();
         const val = Number($("posValue").value);
-        const date = $("posDate").value || todayISO();
-        if (!name || !val) {
-          alert("Name and value required");
+        const start = $("posStart").value;
+        if (!name || !val || !start) {
+          alert("All fields required");
           return;
         }
         positions.push({
           id: Date.now().toString(),
           name,
           initialValue: val,
-          startDate: date,
+          startDate: start,
           updates: [],
         });
         refreshTable();
         $("posName").value = "";
         $("posValue").value = "";
-        $("posDate").value = "";
+        $("posStart").value = nowLocalISOmin();
       }
       function deletePosition(id) {
         const p = positions.find((x) => x.id === id);
@@ -224,7 +260,7 @@
         $("updYield").value = "";
       }
 
-      /* ========= Chart ========= */
+      /* ========= Chart + stats ========= */
       function selectPosition(id) {
         selectedId = id;
         refreshTable();
@@ -234,31 +270,28 @@
         drawChart(p);
       }
       function drawChart(p) {
-        const labels = [new Date(p.startDate)];
-        const values = [p.initialValue];
-        const yields = [0];
+        const valuePts = [{ x: new Date(p.startDate), y: p.initialValue }];
+        const yieldPts = [{ x: new Date(p.startDate), y: 0 }];
         p.updates.forEach((u) => {
-          labels.push(new Date(u.time));
-          values.push(u.value);
-          yields.push(u.pendingYield);
+          valuePts.push({ x: new Date(u.time), y: u.value });
+          yieldPts.push({ x: new Date(u.time), y: u.pendingYield });
         });
+
+        /* ---- Chart ---- */
         if (chart) chart.destroy();
         chart = new Chart($("positionChart"), {
           type: "line",
           data: {
-            labels: labels.map(
-              (d) => d.toLocaleDateString() + " " + d.toLocaleTimeString()
-            ),
             datasets: [
               {
                 label: "Position Value",
-                data: values,
+                data: valuePts,
                 yAxisID: "y",
                 fill: false,
               },
               {
                 label: "Pending Yield",
-                data: yields,
+                data: yieldPts,
                 yAxisID: "y1",
                 fill: false,
                 borderDash: [5, 5],
@@ -269,7 +302,10 @@
             responsive: true,
             interaction: { mode: "index", intersect: false },
             scales: {
-              x: { title: { display: true, text: "Date & Time" } },
+              x: {
+                type: "time",
+                title: { display: true, text: "Date & Time" },
+              },
               y: { title: { display: true, text: "USD (Value)" } },
               y1: {
                 title: { display: true, text: "USD (Yield)" },
@@ -279,6 +315,26 @@
             },
           },
         });
+
+        /* ---- Stats table ---- */
+        const initial = p.initialValue;
+        const lastVal = valuePts.at(-1).y;
+        const lastYld = yieldPts.at(-1).y;
+        const retValuePct = ((lastVal - initial) / initial) * 100;
+        const retYieldPct = (lastYld / initial) * 100;
+
+        const days = (valuePts.at(-1).x - valuePts[0].x) / 86400000;
+        const annYieldPct = days > 0 ? retYieldPct * (365 / days) : NaN;
+
+        $("retValue").textContent = isFinite(retValuePct)
+          ? retValuePct.toFixed(2) + " %"
+          : "—";
+        $("retYield").textContent = isFinite(retYieldPct)
+          ? retYieldPct.toFixed(2) + " %"
+          : "—";
+        $("annYield").textContent = isFinite(annYieldPct)
+          ? annYieldPct.toFixed(2) + " %"
+          : "—";
       }
 
       /* ========= File I/O ========= */
@@ -287,10 +343,10 @@
           type: "application/json",
         });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "yield_positions.json";
-        a.click();
+        Object.assign(document.createElement("a"), {
+          href: url,
+          download: "yield_positions.json",
+        }).click();
         URL.revokeObjectURL(url);
       }
       function importJSON(file) {
@@ -312,7 +368,7 @@
         r.readAsText(file);
       }
 
-      /* ========= Events ========= */
+      /* ========= Init ========= */
       $("addBtn").onclick = addPosition;
       $("updBtn").onclick = addUpdate;
       $("exportBtn").onclick = exportJSON;
@@ -320,7 +376,8 @@
       $("importFile").onchange = (e) => {
         if (e.target.files[0]) importJSON(e.target.files[0]);
       };
-      $("posDate").valueAsDate = new Date();
+
+      $("posStart").value = nowLocalISOmin();
       refreshTable(); // start empty
     </script>
   </body>
