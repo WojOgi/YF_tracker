@@ -189,6 +189,7 @@
             <th>% Return (Value)</th>
             <th>% Return (Yield)</th>
             <th>Annualized Yield %</th>
+            <th>Avg Daily Income (USD)</th>
           </tr>
         </thead>
         <tbody>
@@ -196,6 +197,7 @@
             <td id="retValue">—</td>
             <td id="retYield">—</td>
             <td id="annYield">—</td>
+            <td id="avgInc">—</td>
           </tr>
         </tbody>
       </table>
@@ -376,6 +378,7 @@
         const retYieldPct = (lastYld / initial) * 100;
         const days = (valuePts.at(-1).x - valuePts[0].x) / 86400000;
         const annYieldPct = days > 0 ? retYieldPct * (365 / days) : NaN;
+        const avgDailyIncome = days > 0 ? lastYld / days : NaN;
 
         $("retValue").textContent = isFinite(retValuePct)
           ? retValuePct.toFixed(2) + "%"
@@ -385,6 +388,9 @@
           : "—";
         $("annYield").textContent = isFinite(annYieldPct)
           ? annYieldPct.toFixed(2) + "%"
+          : "—";
+        $("avgInc").textContent = isFinite(avgDailyIncome)
+          ? avgDailyIncome.toFixed(2)
           : "—";
 
         if (yieldPts.length >= 2) {
