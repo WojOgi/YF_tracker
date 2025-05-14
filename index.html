@@ -131,17 +131,17 @@
     <h1>Yield-Farming Position Tracker</h1>
 
     <div class="top-container">
+      <!-- Add Position -->
       <div class="section">
         <h2>Add Position</h2>
-        <label>Name</label>
-        <input id="posName" />
-        <label>Initial Value (USD)</label>
-        <input id="posValue" type="number" />
-        <label>Start (Date & Time)</label>
-        <input id="posStart" type="datetime-local" />
+        <label>Name</label><input id="posName" />
+        <label>Initial Value (USD)</label><input id="posValue" type="number" />
+        <label>Start (Date &amp; Time)</label
+        ><input id="posStart" type="datetime-local" />
         <button id="addBtn">Add Position</button>
       </div>
 
+      <!-- Data Management -->
       <div class="section">
         <h2>Data Management</h2>
         <button id="exportBtn">Export JSON</button>
@@ -149,6 +149,7 @@
         <button id="importBtn">Import JSON</button>
       </div>
 
+      <!-- Positions list -->
       <div class="section wide-section">
         <h2>Your Positions</h2>
         <table id="positionsTable">
@@ -167,17 +168,17 @@
         </table>
       </div>
 
+      <!-- Update Position -->
       <div class="section" id="updateSection" style="display: none">
         <h2>Update Position</h2>
         <h3 id="updateTitle"></h3>
-        <label>Current Value (USD)</label>
-        <input id="updValue" type="number" />
-        <label>Pending Yield (USD)</label>
-        <input id="updYield" type="number" />
+        <label>Current Value (USD)</label><input id="updValue" type="number" />
+        <label>Pending Yield (USD)</label><input id="updYield" type="number" />
         <button id="updBtn">Add Update</button>
       </div>
     </div>
 
+    <!-- Chart & stats -->
     <div id="chartContainer" style="display: none">
       <h2>History: <span id="chartTitle"></span></h2>
       <canvas id="positionChart"></canvas>
@@ -189,6 +190,8 @@
             <th>% Return (Value)</th>
             <th>% Return (Yield)</th>
             <th>Annualized Yield %</th>
+            <th>Annualized Total %</th>
+            <!-- NEW -->
             <th>Avg Daily Income (USD)</th>
           </tr>
         </thead>
@@ -197,6 +200,8 @@
             <td id="retValue">—</td>
             <td id="retYield">—</td>
             <td id="annYield">—</td>
+            <td id="annTotal">—</td>
+            <!-- NEW -->
             <td id="avgInc">—</td>
           </tr>
         </tbody>
@@ -219,22 +224,23 @@
         )}:${z(d.getMinutes())}`;
       };
 
+      /* ---------- table helpers ---------- */
       function buildRow(p) {
         const tr = document.createElement("tr");
         if (p.id === selectedId) tr.style.backgroundColor = "#333";
         const last = p.updates.at(-1);
         tr.innerHTML = `
-    <td>${p.name}</td>
-    <td>${fmt(p.initialValue)}</td>
-    <td>${new Date(p.startDate).toLocaleString()}</td>
-    <td>${fmt(last ? last.value : p.initialValue)}</td>
-    <td>${fmt(last ? last.pendingYield : 0)}</td>
-    <td>${last ? new Date(last.time).toLocaleString() : "—"}</td>
-    <td>
-      <button data-act="select">Select</button>
-      <button data-act="update">Update</button>
-      <button data-act="delete">Delete</button>
-    </td>`;
+          <td>${p.name}</td>
+          <td>${fmt(p.initialValue)}</td>
+          <td>${new Date(p.startDate).toLocaleString()}</td>
+          <td>${fmt(last ? last.value : p.initialValue)}</td>
+          <td>${fmt(last ? last.pendingYield : 0)}</td>
+          <td>${last ? new Date(last.time).toLocaleString() : "—"}</td>
+          <td>
+            <button data-act="select">Select</button>
+            <button data-act="update">Update</button>
+            <button data-act="delete">Delete</button>
+          </td>`;
         tr.querySelectorAll("button").forEach((btn) => {
           const act = btn.dataset.act;
           btn.onclick = () => {
@@ -245,13 +251,13 @@
         });
         return tr;
       }
-
       function refreshTable() {
         const tbody = $("positionsTable").querySelector("tbody");
         tbody.innerHTML = "";
         positions.forEach((p) => tbody.appendChild(buildRow(p)));
       }
 
+      /* ---------- CRUD ---------- */
       function addPosition() {
         const name = $("posName").value.trim();
         const val = Number($("posValue").value);
@@ -272,7 +278,6 @@
         $("posValue").value = "";
         $("posStart").value = nowLocalISOmin();
       }
-
       function deletePosition(id) {
         const p = positions.find((x) => x.id === id);
         if (!confirm(`Delete position “${p.name}”?`)) return;
@@ -284,7 +289,6 @@
         }
         refreshTable();
       }
-
       function openUpdate(id) {
         selectedId = id;
         $("updateSection").style.display = "block";
@@ -294,7 +298,6 @@
         $("updYield").value = "";
         selectPosition(id);
       }
-
       function addUpdate() {
         const val = Number($("updValue").value);
         const yld = Number($("updYield").value);
@@ -309,7 +312,6 @@
         $("updValue").value = "";
         $("updYield").value = "";
       }
-
       function selectPosition(id) {
         selectedId = id;
         refreshTable();
@@ -319,6 +321,7 @@
         drawChart(p);
       }
 
+      /* ---------- chart & stats ---------- */
       function drawChart(p) {
         const valuePts = [{ x: new Date(p.startDate), y: p.initialValue }];
         const yieldPts = [{ x: new Date(p.startDate), y: 0 }];
@@ -371,13 +374,16 @@
           },
         });
 
+        /* ---- stats ---- */
         const initial = p.initialValue;
         const lastVal = valuePts.at(-1).y;
         const lastYld = yieldPts.at(-1).y;
         const retValuePct = ((lastVal - initial) / initial) * 100;
         const retYieldPct = (lastYld / initial) * 100;
+        const retTotalPct = ((lastVal + lastYld - initial) / initial) * 100; // NEW
         const days = (valuePts.at(-1).x - valuePts[0].x) / 86400000;
         const annYieldPct = days > 0 ? retYieldPct * (365 / days) : NaN;
+        const annTotalPct = days > 0 ? retTotalPct * (365 / days) : NaN; // NEW
         const avgDailyIncome = days > 0 ? lastYld / days : NaN;
 
         $("retValue").textContent = isFinite(retValuePct)
@@ -389,20 +395,24 @@
         $("annYield").textContent = isFinite(annYieldPct)
           ? annYieldPct.toFixed(2) + "%"
           : "—";
+        $("annTotal").textContent = isFinite(annTotalPct)
+          ? annTotalPct.toFixed(2) + "%"
+          : "—"; // NEW
         $("avgInc").textContent = isFinite(avgDailyIncome)
           ? avgDailyIncome.toFixed(2)
           : "—";
 
+        /* slope of yield for info */
         if (yieldPts.length >= 2) {
           const n = yieldPts.length;
-          const sumX = yieldPts.reduce((sum, pt) => sum + pt.x.getTime(), 0);
-          const sumY = yieldPts.reduce((sum, pt) => sum + pt.y, 0);
+          const sumX = yieldPts.reduce((s, pt) => s + pt.x.getTime(), 0);
+          const sumY = yieldPts.reduce((s, pt) => s + pt.y, 0);
           const sumXY = yieldPts.reduce(
-            (sum, pt) => sum + pt.x.getTime() * pt.y,
+            (s, pt) => s + pt.x.getTime() * pt.y,
             0
           );
           const sumXX = yieldPts.reduce(
-            (sum, pt) => sum + pt.x.getTime() * pt.x.getTime(),
+            (s, pt) => s + pt.x.getTime() * pt.x.getTime(),
             0
           );
           const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
@@ -417,6 +427,7 @@
         }
       }
 
+      /* ---------- export / import ---------- */
       function exportJSON() {
         const blob = new Blob([JSON.stringify(positions, null, 2)], {
           type: "application/json",
@@ -428,7 +439,6 @@
         }).click();
         URL.revokeObjectURL(url);
       }
-
       function importJSON(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -446,6 +456,7 @@
         reader.readAsText(file);
       }
 
+      /* ---------- hook up ---------- */
       $("addBtn").onclick = addPosition;
       $("updBtn").onclick = addUpdate;
       $("exportBtn").onclick = exportJSON;
@@ -453,7 +464,6 @@
       $("importFile").addEventListener("change", (e) => {
         if (e.target.files[0]) importJSON(e.target.files[0]);
       });
-
       $("posStart").value = nowLocalISOmin();
       refreshTable();
     </script>
