@@ -4,15 +4,13 @@
     <meta charset="UTF-8" />
     <title>Yield-Farming Position Tracker</title>
 
-    <!-- Chart.js + time adapter -->
+    <!-- Chart.js + time-adapter -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 
     <style>
-      /* Global styling */
-      * {
-        box-sizing: border-box;
-      }
+      /* ───── GLOBAL ───── */
+      * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -21,109 +19,48 @@
         padding: 20px;
         line-height: 1.5;
       }
-      h1,
-      h2 {
-        color: #ffffff;
-        margin-bottom: 20px;
-      }
-      a {
-        color: #4caf50;
-        text-decoration: none;
-      }
+      h1, h2 { color: #ffffff; margin-bottom: 20px; }
+      a       { color: #4caf50; text-decoration: none; }
 
-      /* Flex layout */
+      /* ───── FLEX LAYOUT ───── */
       .top-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-        margin-bottom: 40px;
+        display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 40px;
       }
       .section {
-        background: #1f1f1f;
-        padding: 20px;
-        border-radius: 8px;
-        flex: 1 1 300px;
-        min-width: 280px;
+        background: #1f1f1f; padding: 20px; border-radius: 8px;
+        flex: 1 1 300px; min-width: 280px;
       }
-      .wide-section {
-        flex: 2 1 600px;
-      }
+      .wide-section { flex: 2 1 600px; }
 
-      /* Form elements */
-      label {
-        display: block;
-        margin-top: 10px;
-        font-size: 14px;
+      /* ───── FORM ELEMENTS ───── */
+      label { display: block; margin-top: 10px; font-size: 14px; }
+      input, button {
+        width: 100%; padding: 10px; margin-top: 6px;
+        background: #2c2c2c; color: #fff; border: none; border-radius: 6px;
       }
-      input,
-      button {
-        width: 100%;
-        padding: 10px;
-        margin-top: 6px;
-        background: #2c2c2c;
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-      }
-      input[type="file"] {
-        display: none;
-      }
-      button {
-        background: #4caf50;
-        cursor: pointer;
-        font-weight: bold;
-      }
-      button:hover {
-        background: #45a049;
-      }
+      input[type="file"] { display: none; }
+      button          { background: #4caf50; cursor: pointer; font-weight: bold; }
+      button:hover    { background: #45a049; }
 
-      /* Table styling */
-      table {
-        width: 100%;
-        margin-top: 10px;
-        border-collapse: collapse;
+      /* ───── TABLE ───── */
+      table { width: 100%; margin-top: 10px; border-collapse: collapse; }
+      th, td {
+        padding: 8px 10px; border: 1px solid #333; font-size: 14px;
       }
-      th,
-      td {
-        padding: 8px 10px;
-        border: 1px solid #333;
-        font-size: 14px;
-      }
-      th {
-        background: #2c2c2c;
-        text-align: left;
-      }
-      tr:nth-child(even) {
-        background: #1a1a1a;
-      }
-      tr:hover {
-        background: #333;
-      }
+      th { background: #2c2c2c; text-align: left; }
+      tr:nth-child(even) { background: #1a1a1a; }
+      tr:hover           { background: #333; }
 
-      /* Chart container */
-      #chartContainer {
-        max-width: 1000px;
-        margin: 0 auto 40px;
-      }
+      /* ───── CHART ───── */
+      #chartContainer { max-width: 1000px; margin: 0 auto 40px; }
       canvas {
-        background: #1e1e1e;
-        border: 1px solid #333;
-        border-radius: 8px;
-        width: 100% !important;
-        height: 500px !important;
+        background: #1e1e1e; border: 1px solid #333; border-radius: 8px;
+        width: 100%!important; height: 500px!important;
       }
-      #slopeInfo {
-        margin-top: 12px;
-        font-size: 16px;
-        color: #4caf50;
-      }
+      #slopeInfo { margin-top: 12px; font-size: 16px; color: #4caf50; }
 
-      /* Responsive */
-      @media (max-width: 768px) {
-        .top-container {
-          flex-direction: column;
-        }
-      }
+      /* ───── RESPONSIVE ───── */
+      @media (max-width: 768px) { .top-container { flex-direction: column; } }
     </style>
   </head>
 
@@ -131,17 +68,16 @@
     <h1>Yield-Farming Position Tracker</h1>
 
     <div class="top-container">
-      <!-- Add Position -->
+      <!-- ADD POSITION -->
       <div class="section">
         <h2>Add Position</h2>
         <label>Name</label><input id="posName" />
         <label>Initial Value (USD)</label><input id="posValue" type="number" />
-        <label>Start (Date &amp; Time)</label
-        ><input id="posStart" type="datetime-local" />
+        <label>Start (Date &amp; Time)</label><input id="posStart" type="datetime-local" />
         <button id="addBtn">Add Position</button>
       </div>
 
-      <!-- Data Management -->
+      <!-- DATA MANAGEMENT -->
       <div class="section">
         <h2>Data Management</h2>
         <button id="exportBtn">Export JSON</button>
@@ -149,27 +85,22 @@
         <button id="importBtn">Import JSON</button>
       </div>
 
-      <!-- Positions list -->
+      <!-- POSITIONS LIST -->
       <div class="section wide-section">
         <h2>Your Positions</h2>
         <table id="positionsTable">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Initial</th>
-              <th>Start</th>
-              <th>Last Value</th>
-              <th>Last Yield</th>
-              <th>Last Update</th>
-              <th>Actions</th>
+              <th>Name</th><th>Initial</th><th>Start</th>
+              <th>Last Value</th><th>Last Yield</th><th>Last Update</th><th>Actions</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
 
-      <!-- Update Position -->
-      <div class="section" id="updateSection" style="display: none">
+      <!-- UPDATE POSITION -->
+      <div class="section" id="updateSection" style="display:none">
         <h2>Update Position</h2>
         <h3 id="updateTitle"></h3>
         <label>Current Value (USD)</label><input id="updValue" type="number" />
@@ -178,8 +109,8 @@
       </div>
     </div>
 
-    <!-- Chart & stats -->
-    <div id="chartContainer" style="display: none">
+    <!-- CHART & STATS -->
+    <div id="chartContainer" style="display:none">
       <h2>History: <span id="chartTitle"></span></h2>
       <canvas id="positionChart"></canvas>
       <div id="slopeInfo"></div>
@@ -187,21 +118,15 @@
       <table id="statsTable">
         <thead>
           <tr>
-            <th>% Return (Value)</th>
-            <th>% Return (Yield)</th>
-            <th>Annualized Yield %</th>
-            <th>Annualized Total %</th>
-            <!-- NEW -->
+            <th>% Return (Value)</th><th>% Return (Yield)</th>
+            <th>Annualized Yield %</th><th>Annualized Total %</th>
             <th>Avg Daily Income (USD)</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td id="retValue">—</td>
-            <td id="retYield">—</td>
-            <td id="annYield">—</td>
-            <td id="annTotal">—</td>
-            <!-- NEW -->
+            <td id="retValue">—</td><td id="retYield">—</td>
+            <td id="annYield">—</td><td id="annTotal">—</td>
             <td id="avgInc">—</td>
           </tr>
         </tbody>
@@ -209,262 +134,214 @@
     </div>
 
     <script>
-      const $ = (id) => document.getElementById(id);
-      let positions = [];
-      let selectedId = null;
-      let chart = null;
-
-      const fmt = (n) =>
-        Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+      /* ───── HELPERS & STATE ───── */
+      const $   = id => document.getElementById(id);
+      const fmt = n  => Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
       const nowLocalISOmin = () => {
-        const z = (n) => String(n).padStart(2, "0"),
-          d = new Date();
-        return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(
-          d.getHours()
-        )}:${z(d.getMinutes())}`;
+        const z=n=>String(n).padStart(2,"0"), d=new Date();
+        return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
       };
 
-      /* ---------- table helpers ---------- */
-      function buildRow(p) {
-        const tr = document.createElement("tr");
-        if (p.id === selectedId) tr.style.backgroundColor = "#333";
-        const last = p.updates.at(-1);
-        tr.innerHTML = `
+      let positions=[], selectedId=null, chart=null;
+
+      /* ───── TABLE ───── */
+      function buildRow(p){
+        const tr=document.createElement("tr");
+        if(p.id===selectedId) tr.style.backgroundColor="#333";
+        const last=p.updates.at(-1);
+        tr.innerHTML=`
           <td>${p.name}</td>
           <td>${fmt(p.initialValue)}</td>
           <td>${new Date(p.startDate).toLocaleString()}</td>
-          <td>${fmt(last ? last.value : p.initialValue)}</td>
-          <td>${fmt(last ? last.pendingYield : 0)}</td>
-          <td>${last ? new Date(last.time).toLocaleString() : "—"}</td>
+          <td>${fmt(last?last.value:p.initialValue)}</td>
+          <td>${fmt(last?last.pendingYield:0)}</td>
+          <td>${last?new Date(last.time).toLocaleString():"—"}</td>
           <td>
             <button data-act="select">Select</button>
             <button data-act="update">Update</button>
             <button data-act="delete">Delete</button>
           </td>`;
-        tr.querySelectorAll("button").forEach((btn) => {
-          const act = btn.dataset.act;
-          btn.onclick = () => {
-            if (act === "select") selectPosition(p.id);
-            else if (act === "update") openUpdate(p.id);
-            else if (act === "delete") deletePosition(p.id);
-          };
+        tr.querySelectorAll("button").forEach(btn=>{
+          const act=btn.dataset.act;
+          btn.onclick=()=> act==="select" ? selectPosition(p.id)
+                        : act==="update" ? openUpdate(p.id)
+                        : deletePosition(p.id);
         });
         return tr;
       }
-      function refreshTable() {
-        const tbody = $("positionsTable").querySelector("tbody");
-        tbody.innerHTML = "";
-        positions.forEach((p) => tbody.appendChild(buildRow(p)));
-      }
+      const refreshTable=()=>{
+        const tbody=$("positionsTable").querySelector("tbody");
+        tbody.innerHTML=""; positions.forEach(p=>tbody.appendChild(buildRow(p)));
+      };
 
-      /* ---------- CRUD ---------- */
-      function addPosition() {
-        const name = $("posName").value.trim();
-        const val = Number($("posValue").value);
-        const start = $("posStart").value;
-        if (!name || !val || !start) {
-          alert("All fields required");
-          return;
-        }
-        positions.push({
-          id: Date.now().toString(),
-          name,
-          initialValue: val,
-          startDate: start,
-          updates: [],
-        });
+      /* ───── CRUD ───── */
+      function addPosition(){
+        const name=$("posName").value.trim();
+        const val =Number($("posValue").value);
+        const start=$("posStart").value;
+        if(!name||!val||!start){ alert("All fields required"); return; }
+        positions.push({id:Date.now().toString(), name, initialValue:val, startDate:start, updates:[]});
         refreshTable();
-        $("posName").value = "";
-        $("posValue").value = "";
-        $("posStart").value = nowLocalISOmin();
+        $("posName").value=""; $("posValue").value=""; $("posStart").value=nowLocalISOmin();
       }
-      function deletePosition(id) {
-        const p = positions.find((x) => x.id === id);
-        if (!confirm(`Delete position “${p.name}”?`)) return;
-        positions = positions.filter((x) => x.id !== id);
-        if (selectedId === id) {
-          selectedId = null;
-          $("updateSection").style.display = "none";
-          $("chartContainer").style.display = "none";
+      function deletePosition(id){
+        const p=positions.find(x=>x.id===id);
+        if(!confirm(`Delete position “${p.name}”?`)) return;
+        positions=positions.filter(x=>x.id!==id);
+        if(selectedId===id){
+          selectedId=null;
+          $("updateSection").style.display="none";
+          $("chartContainer").style.display="none";
         }
         refreshTable();
       }
-      function openUpdate(id) {
-        selectedId = id;
-        $("updateSection").style.display = "block";
-        const p = positions.find((x) => x.id === id);
-        $("updateTitle").textContent = p.name;
-        $("updValue").value = "";
-        $("updYield").value = "";
+      function openUpdate(id){
+        selectedId=id;
+        $("updateSection").style.display="block";
+        const p=positions.find(x=>x.id===id);
+        $("updateTitle").textContent=p.name;
+        $("updValue").value=""; $("updYield").value="";
         selectPosition(id);
       }
-      function addUpdate() {
-        const val = Number($("updValue").value);
-        const yld = Number($("updYield").value);
-        if (isNaN(val) || isNaN(yld)) {
-          alert("Numbers required");
-          return;
-        }
-        const p = positions.find((x) => x.id === selectedId);
-        p.updates.push({ time: Date.now(), value: val, pendingYield: yld });
-        refreshTable();
-        drawChart(p);
-        $("updValue").value = "";
-        $("updYield").value = "";
+      function addUpdate(){
+        const val =Number($("updValue").value);
+        const yld =Number($("updYield").value);
+        if(isNaN(val)||isNaN(yld)){ alert("Numbers required"); return; }
+        const p=positions.find(x=>x.id===selectedId);
+        p.updates.push({time:Date.now(), value:val, pendingYield:yld});
+        refreshTable(); drawChart(p);
+        $("updValue").value=""; $("updYield").value="";
       }
-      function selectPosition(id) {
-        selectedId = id;
-        refreshTable();
-        const p = positions.find((x) => x.id === id);
-        $("chartTitle").textContent = p.name;
-        $("chartContainer").style.display = "block";
+      function selectPosition(id){
+        selectedId=id; refreshTable();
+        const p=positions.find(x=>x.id===id);
+        $("chartTitle").textContent=p.name;
+        $("chartContainer").style.display="block";
         drawChart(p);
       }
 
-      /* ---------- chart & stats ---------- */
-      function drawChart(p) {
-        const valuePts = [{ x: new Date(p.startDate), y: p.initialValue }];
-        const yieldPts = [{ x: new Date(p.startDate), y: 0 }];
-        p.updates.forEach((u) => {
-          valuePts.push({ x: new Date(u.time), y: u.value });
-          yieldPts.push({ x: new Date(u.time), y: u.pendingYield });
+      /* ───── CHART & STATS ───── */
+      function drawChart(p){
+        const valuePts=[{x:new Date(p.startDate), y:p.initialValue}];
+        const  yieldPts=[{x:new Date(p.startDate), y:0}];
+        const totalPts=[{x:new Date(p.startDate), y:p.initialValue}];
+
+        p.updates.forEach(u=>{
+          const t=new Date(u.time);
+          valuePts.push({x:t, y:u.value});
+          yieldPts.push({x:t, y:u.pendingYield});
+          totalPts.push({x:t, y:u.value+u.pendingYield});
         });
 
-        if (chart) chart.destroy();
-        chart = new Chart($("positionChart"), {
-          type: "line",
-          data: {
-            datasets: [
-              {
-                label: "Position Value",
-                data: valuePts,
-                yAxisID: "y",
-                borderColor: "#4caf50",
-                tension: 0.3,
-              },
-              {
-                label: "Pending Yield",
-                data: yieldPts,
-                yAxisID: "y1",
-                borderColor: "#ff9800",
-                borderDash: [5, 5],
-                tension: 0.3,
-              },
-            ],
+        /* dashed guide-lines (2-point datasets) */
+        const guideValue = [
+          {x:valuePts[0].x, y:valuePts[0].y},
+          {x:valuePts.at(-1).x, y:valuePts.at(-1).y}
+        ];
+        const guideTotal = [
+          {x:totalPts[0].x, y:totalPts[0].y},
+          {x:totalPts.at(-1).x, y:totalPts.at(-1).y}
+        ];
+
+        if(chart) chart.destroy();
+        chart=new Chart($("positionChart"),{
+          type:"line",
+          data:{
+            datasets:[
+              /* main series */
+              { label:"Position Value", data:valuePts, yAxisID:"y",
+                borderColor:"#4caf50", tension:0.3 },
+              { label:"Pending Yield", data:yieldPts, yAxisID:"y1",
+                borderColor:"#ff9800", borderDash:[5,5], tension:0.3 },
+              { label:"Value + Yield", data:totalPts, yAxisID:"y",
+                borderColor:"#2196f3", tension:0.3 },
+
+              /* guide lines */
+              { label:"Start→End (Value)", data:guideValue, yAxisID:"y",
+                borderColor:"#66bb6a", borderDash:[10,6], fill:false,
+                pointRadius:0, tension:0, order:0 },
+              { label:"Start→End (Total)", data:guideTotal, yAxisID:"y",
+                borderColor:"#64b5f6", borderDash:[10,6], fill:false,
+                pointRadius:0, tension:0, order:0 },
+            ]
           },
-          options: {
-            responsive: true,
-            scales: {
-              x: {
-                type: "time",
-                ticks: { color: "#ccc", maxTicksLimit: 6 },
-                title: { text: "Date & Time", display: true, color: "#ccc" },
-              },
-              y: {
-                title: { text: "Value (USD)", display: true, color: "#ccc" },
-                ticks: { color: "#ccc" },
-              },
-              y1: {
-                position: "right",
-                grid: { drawOnChartArea: false },
-                title: { text: "Yield (USD)", display: true, color: "#ccc" },
-                ticks: { color: "#ccc" },
-              },
+          options:{
+            responsive:true,
+            plugins:{ legend:{labels:{color:"#ccc"}} },
+            scales:{
+              x:{ type:"time",
+                  ticks:{color:"#ccc",maxTicksLimit:6},
+                  title:{text:"Date & Time",display:true,color:"#ccc"} },
+              y:{ title:{text:"Value (USD)",display:true,color:"#ccc"},
+                  ticks:{color:"#ccc"} },
+              y1:{ position:"right", grid:{drawOnChartArea:false},
+                   title:{text:"Yield (USD)",display:true,color:"#ccc"},
+                   ticks:{color:"#ccc"} },
             },
           },
         });
 
-        /* ---- stats ---- */
+        /* statistics */
         const initial = p.initialValue;
         const lastVal = valuePts.at(-1).y;
         const lastYld = yieldPts.at(-1).y;
-        const retValuePct = ((lastVal - initial) / initial) * 100;
-        const retYieldPct = (lastYld / initial) * 100;
-        const retTotalPct = ((lastVal + lastYld - initial) / initial) * 100; // NEW
-        const days = (valuePts.at(-1).x - valuePts[0].x) / 86400000;
-        const annYieldPct = days > 0 ? retYieldPct * (365 / days) : NaN;
-        const annTotalPct = days > 0 ? retTotalPct * (365 / days) : NaN; // NEW
-        const avgDailyIncome = days > 0 ? lastYld / days : NaN;
+        const retValuePct=((lastVal-initial)/initial)*100;
+        const retYieldPct=(lastYld/initial)*100;
+        const retTotalPct=((lastVal+lastYld-initial)/initial)*100;
+        const days=(valuePts.at(-1).x-valuePts[0].x)/864e5;
+        const annYieldPct=days>0?retYieldPct*(365/days):NaN;
+        const annTotalPct=days>0?retTotalPct*(365/days):NaN;
+        const avgDailyIncome=days>0?lastYld/days:NaN;
 
-        $("retValue").textContent = isFinite(retValuePct)
-          ? retValuePct.toFixed(2) + "%"
-          : "—";
-        $("retYield").textContent = isFinite(retYieldPct)
-          ? retYieldPct.toFixed(2) + "%"
-          : "—";
-        $("annYield").textContent = isFinite(annYieldPct)
-          ? annYieldPct.toFixed(2) + "%"
-          : "—";
-        $("annTotal").textContent = isFinite(annTotalPct)
-          ? annTotalPct.toFixed(2) + "%"
-          : "—"; // NEW
-        $("avgInc").textContent = isFinite(avgDailyIncome)
-          ? avgDailyIncome.toFixed(2)
-          : "—";
+        $("retValue").textContent=isFinite(retValuePct)?retValuePct.toFixed(2)+"%":"—";
+        $("retYield").textContent=isFinite(retYieldPct)?retYieldPct.toFixed(2)+"%":"—";
+        $("annYield").textContent=isFinite(annYieldPct)?annYieldPct.toFixed(2)+"%":"—";
+        $("annTotal").textContent=isFinite(annTotalPct)?annTotalPct.toFixed(2)+"%":"—";
+        $("avgInc").textContent=isFinite(avgDailyIncome)?avgDailyIncome.toFixed(2):"—";
 
-        /* slope of yield for info */
-        if (yieldPts.length >= 2) {
-          const n = yieldPts.length;
-          const sumX = yieldPts.reduce((s, pt) => s + pt.x.getTime(), 0);
-          const sumY = yieldPts.reduce((s, pt) => s + pt.y, 0);
-          const sumXY = yieldPts.reduce(
-            (s, pt) => s + pt.x.getTime() * pt.y,
-            0
-          );
-          const sumXX = yieldPts.reduce(
-            (s, pt) => s + pt.x.getTime() * pt.x.getTime(),
-            0
-          );
-          const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-          const slopePerDay = slope * 86400000;
-          $(
-            "slopeInfo"
-          ).textContent = `Average Yield Growth: ${slopePerDay.toFixed(
-            2
-          )} USD/day`;
-        } else {
-          $("slopeInfo").textContent = "Not enough data for trendline.";
-        }
+        /* slope of yield */
+        if(yieldPts.length>=2){
+          const n=yieldPts.length;
+          const sumX=yieldPts.reduce((s,pt)=>s+pt.x.getTime(),0);
+          const sumY=yieldPts.reduce((s,pt)=>s+pt.y,0);
+          const sumXY=yieldPts.reduce((s,pt)=>s+pt.x.getTime()*pt.y,0);
+          const sumXX=yieldPts.reduce((s,pt)=>s+pt.x.getTime()*pt.x.getTime(),0);
+          const slope=(n*sumXY-sumX*sumY)/(n*sumXX-sumX*sumX);
+          const slopePerDay=slope*864e5;
+          $("slopeInfo").textContent=`Average Yield Growth: ${slopePerDay.toFixed(2)} USD/day`;
+        }else $("slopeInfo").textContent="Not enough data for trendline.";
       }
 
-      /* ---------- export / import ---------- */
-      function exportJSON() {
-        const blob = new Blob([JSON.stringify(positions, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        Object.assign(document.createElement("a"), {
-          href: url,
-          download: "yield_positions.json",
-        }).click();
+      /* ───── EXPORT / IMPORT ───── */
+      const exportJSON=()=>{
+        const blob=new Blob([JSON.stringify(positions,null,2)],{type:"application/json"});
+        const url=URL.createObjectURL(blob);
+        Object.assign(document.createElement("a"),{href:url,download:"yield_positions.json"}).click();
         URL.revokeObjectURL(url);
-      }
-      function importJSON(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const data = JSON.parse(e.target.result);
-            if (!Array.isArray(data)) throw "Invalid file";
-            positions = data;
-            refreshTable();
-            $("updateSection").style.display = "none";
-            $("chartContainer").style.display = "none";
-          } catch (err) {
-            alert("Import failed: " + err);
-          }
+      };
+      const importJSON=file=>{
+        const reader=new FileReader();
+        reader.onload=e=>{
+          try{
+            const data=JSON.parse(e.target.result);
+            if(!Array.isArray(data)) throw "Invalid file";
+            positions=data; refreshTable();
+            $("updateSection").style.display="none";
+            $("chartContainer").style.display="none";
+          }catch(err){ alert("Import failed: "+err); }
         };
         reader.readAsText(file);
-      }
+      };
 
-      /* ---------- hook up ---------- */
-      $("addBtn").onclick = addPosition;
-      $("updBtn").onclick = addUpdate;
-      $("exportBtn").onclick = exportJSON;
-      $("importBtn").onclick = () => $("importFile").click();
-      $("importFile").addEventListener("change", (e) => {
-        if (e.target.files[0]) importJSON(e.target.files[0]);
+      /* ───── INITIALISE ───── */
+      $("addBtn").onclick  = addPosition;
+      $("updBtn").onclick  = addUpdate;
+      $("exportBtn").onclick=exportJSON;
+      $("importBtn").onclick=()=>$("importFile").click();
+      $("importFile").addEventListener("change",e=>{
+        if(e.target.files[0]) importJSON(e.target.files[0]);
       });
-      $("posStart").value = nowLocalISOmin();
+      $("posStart").value=nowLocalISOmin();
       refreshTable();
     </script>
   </body>
