@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <title>Yield-Farming Position Tracker</title>
 
+    <!-- Chart.js + time-adapter -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 
@@ -98,14 +99,17 @@
       tr:hover {
         background: #333;
       }
+      tr.total-row {
+        font-weight: 700;
+        background: #262626;
+      }
 
       /* ───── CHART & STATS (Individual Item) ───── */
       .chart-item {
-        /* Class for individual chart blocks */
-        margin-bottom: 30px; /* Space between chart blocks */
-        max-width: 50%; /* Reduce horizontal size to 50% of available width */
-        margin-left: auto; /* Center the block */
-        margin-right: auto; /* Center the block */
+        margin-bottom: 30px;
+        max-width: 50%; /* 50 % width (reduced horizontally) */
+        margin-left: auto;
+        margin-right: auto;
       }
       .chart-item canvas {
         background: #1e1e1e;
@@ -115,7 +119,6 @@
         max-height: 400px;
       }
       .chart-item .slopeInfo-dynamic {
-        /* Class for dynamic slope info */
         margin-top: 12px;
         font-size: 16px;
         color: #4caf50;
@@ -132,7 +135,6 @@
           flex-direction: column;
         }
         .chart-item {
-          /* On smaller screens, let charts take more width */
           max-width: 95%;
         }
       }
@@ -143,15 +145,17 @@
     <h1>Yield-Farming Position Tracker</h1>
 
     <div class="top-container">
+      <!-- ───── ADD POSITION ───── -->
       <div class="section">
         <h2>Add Position</h2>
         <label>Name</label><input id="posName" />
         <label>Initial Value (USD)</label><input id="posValue" type="number" />
-        <label>Start (Date &amp; Time)</label
+        <label>Start (Date & Time)</label
         ><input id="posStart" type="datetime-local" />
         <button id="addBtn">Add Position</button>
       </div>
 
+      <!-- ───── DATA MANAGEMENT ───── -->
       <div class="section">
         <h2>Data Management</h2>
         <button id="exportBtn">Export JSON</button>
@@ -159,6 +163,7 @@
         <button id="importBtn">Import JSON</button>
       </div>
 
+      <!-- ───── POSITIONS TABLE ───── -->
       <div class="section wide-section">
         <h2>Your Positions</h2>
         <table id="positionsTable">
@@ -177,6 +182,7 @@
         </table>
       </div>
 
+      <!-- ───── UPDATE SECTION ───── -->
       <div class="section" id="updateSection" style="display: none">
         <h2>Update Position</h2>
         <h3 id="updateTitle"></h3>
@@ -192,7 +198,10 @@
       /* ───── HELPERS & STATE ───── */
       const $ = (id) => document.getElementById(id);
       const fmt = (n) =>
-        Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        Number(n).toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
       const nowLocalISOmin = () => {
         const z = (n) => String(n).padStart(2, "0"),
           d = new Date();
@@ -204,7 +213,7 @@
       let positions = [],
         selectedId = null;
 
-      /* ───── CREATE CHART DOM ELEMENTS FOR A POSITION ───── */
+      /* ───── CREATE CHART BLOCK ───── */
       function createPositionChartElements(p) {
         const chartItemDiv = document.createElement("div");
         chartItemDiv.className = "section chart-item";
@@ -232,12 +241,11 @@
                 <td id="avgInc-${p.id}">—</td>
               </tr>
             </tbody>
-          </table>
-        `;
+          </table>`;
         $("allChartsDisplayArea").appendChild(chartItemDiv);
       }
 
-      /* ───── TABLE ───── */
+      /* ───── TABLE ROW BUILDER ───── */
       function buildRow(p) {
         const tr = document.createElement("tr");
         if (p.id === selectedId) tr.style.backgroundColor = "#333";
@@ -249,28 +257,50 @@
           <td>${fmt(last ? last.value : p.initialValue)}</td>
           <td>${fmt(last ? last.pendingYield : 0)}</td>
           <td>${last ? new Date(last.time).toLocaleString() : "—"}</td>
-          <td></td>`; // Placeholder for actions cell
+          <td></td>`; // actions holder
 
         const actionButtonsCell = tr.cells[6];
-
-        const updateButton = document.createElement("button");
-        updateButton.textContent = "Update";
-        updateButton.onclick = () => openUpdate(p.id);
-        updateButton.style.marginRight = "5px"; // Add some space between buttons
-        actionButtonsCell.appendChild(updateButton);
-
-        const deleteButton = document.createElement("button");
-        deleteButton.textContent = "Delete";
-        deleteButton.onclick = () => deletePosition(p.id);
-        actionButtonsCell.appendChild(deleteButton);
-
+        const updateBtn = Object.assign(document.createElement("button"), {
+          textContent: "Update",
+          onclick: () => openUpdate(p.id),
+          style: "margin-right:5px",
+        });
+        const deleteBtn = Object.assign(document.createElement("button"), {
+          textContent: "Delete",
+          onclick: () => deletePosition(p.id),
+        });
+        actionButtonsCell.append(updateBtn, deleteBtn);
         return tr;
       }
 
+      /* ───── REFRESH TABLE (now with totals) ───── */
       const refreshTable = () => {
         const tbody = $("positionsTable").querySelector("tbody");
         tbody.innerHTML = "";
-        positions.forEach((p) => tbody.appendChild(buildRow(p)));
+
+        let totalPortfolio = 0,
+          totalYield = 0;
+        positions.forEach((p) => {
+          const last = p.updates.at(-1);
+          const lastVal = last ? last.value : p.initialValue;
+          const lastYld = last ? last.pendingYield : 0;
+          totalPortfolio += lastVal;
+          totalYield += lastYld;
+          tbody.appendChild(buildRow(p));
+        });
+
+        /* ───── TOTALS ROW ───── */
+        const totalRow = document.createElement("tr");
+        totalRow.className = "total-row";
+        totalRow.innerHTML = `
+          <td>TOTAL</td>
+          <td></td>
+          <td></td>
+          <td>${fmt(totalPortfolio)}</td>
+          <td>${fmt(totalYield)}</td>
+          <td></td>
+          <td></td>`;
+        tbody.appendChild(totalRow);
       };
 
       /* ───── CRUD ───── */
@@ -282,6 +312,7 @@
           alert("All fields required");
           return;
         }
+
         const newPosition = {
           id: Date.now().toString(),
           name,
@@ -294,29 +325,22 @@
 
         createPositionChartElements(newPosition);
         drawChart(newPosition);
-
         refreshTable();
+
         $("posName").value = "";
         $("posValue").value = "";
         $("posStart").value = nowLocalISOmin();
       }
 
       function deletePosition(id) {
-        const pIndex = positions.findIndex((x) => x.id === id);
-        if (pIndex === -1) return;
-        const p = positions[pIndex];
-
+        const idx = positions.findIndex((x) => x.id === id);
+        if (idx === -1) return;
+        const p = positions[idx];
         if (!confirm(`Delete position “${p.name}”?`)) return;
 
-        if (p.chartInstance) {
-          p.chartInstance.destroy();
-        }
-        const chartItemDOM = $(`chartItem-${id}`);
-        if (chartItemDOM) {
-          chartItemDOM.remove();
-        }
-
-        positions.splice(pIndex, 1);
+        if (p.chartInstance) p.chartInstance.destroy();
+        $(`chartItem-${id}`)?.remove();
+        positions.splice(idx, 1);
 
         if (selectedId === id) {
           selectedId = null;
@@ -329,7 +353,6 @@
         selectedId = id;
         const p = positions.find((x) => x.id === id);
         if (!p) return;
-
         $("updateSection").style.display = "block";
         $("updateTitle").textContent = p.name;
         $("updValue").value = "";
@@ -344,37 +367,34 @@
 
       function addUpdate() {
         if (!selectedId) {
-          alert("No position selected for update.");
+          alert("No position selected.");
           return;
         }
         const val = Number($("updValue").value);
         const yld = Number($("updYield").value);
         if (isNaN(val) || isNaN(yld)) {
-          alert("Numbers required for value and yield.");
+          alert("Enter numbers.");
           return;
         }
+
         const p = positions.find((x) => x.id === selectedId);
         if (!p) {
-          alert("Selected position not found.");
+          alert("Position not found.");
           return;
         }
         p.updates.push({ time: Date.now(), value: val, pendingYield: yld });
 
-        refreshTable();
         drawChart(p);
-
+        refreshTable();
         $("updValue").value = "";
         $("updYield").value = "";
       }
 
-      /* ───── CHART & STATS ───── */
+      /* ───── CHART DRAW ───── */
       function drawChart(p) {
         if (!p) return;
         const canvas = $(`canvas-${p.id}`);
-        if (!canvas) {
-          console.error(`Canvas not found for position ${p.id}`);
-          return;
-        }
+        if (!canvas) return;
 
         const valuePts = [{ x: new Date(p.startDate), y: p.initialValue }];
         const yieldPts = [{ x: new Date(p.startDate), y: 0 }];
@@ -396,9 +416,7 @@
           { x: totalPts.at(-1).x, y: totalPts.at(-1).y },
         ];
 
-        if (p.chartInstance) {
-          p.chartInstance.destroy();
-        }
+        if (p.chartInstance) p.chartInstance.destroy();
 
         p.chartInstance = new Chart(canvas, {
           type: "line",
@@ -432,7 +450,6 @@
                 yAxisID: "y",
                 borderColor: "#66bb6a",
                 borderDash: [10, 6],
-                fill: false,
                 pointRadius: 0,
                 tension: 0,
                 order: 0,
@@ -443,7 +460,6 @@
                 yAxisID: "y",
                 borderColor: "#64b5f6",
                 borderDash: [10, 6],
-                fill: false,
                 pointRadius: 0,
                 tension: 0,
                 order: 0,
@@ -474,6 +490,7 @@
           },
         });
 
+        /* ───── STATS TABLE UPDATE ───── */
         const initial = p.initialValue;
         const lastVal = valuePts.at(-1).y;
         const lastYld = yieldPts.at(-1).y;
@@ -530,12 +547,9 @@
       function refreshAllChartsAndTable() {
         $("allChartsDisplayArea").innerHTML = "";
         positions.forEach((p) => {
-          if (p.chartInstance) {
-            p.chartInstance.destroy();
-            p.chartInstance = null;
-          }
+          p.chartInstance?.destroy();
+          p.chartInstance = null;
         });
-
         positions.forEach((p) => {
           createPositionChartElements(p);
           drawChart(p);
@@ -543,22 +557,17 @@
         refreshTable();
       }
 
-      /* ───── EXPORT / IMPORT ───── */
+      /* ───── EXPORT & IMPORT ───── */
       const exportJSON = () => {
         const blob = new Blob(
           [
             JSON.stringify(
-              positions.map((p) => {
-                const { chartInstance, ...rest } = p;
-                return rest;
-              }),
+              positions.map(({ chartInstance, ...rest }) => rest),
               null,
               2
             ),
           ],
-          {
-            type: "application/json",
-          }
+          { type: "application/json" }
         );
         const url = URL.createObjectURL(blob);
         Object.assign(document.createElement("a"), {
@@ -567,23 +576,16 @@
         }).click();
         URL.revokeObjectURL(url);
       };
-
       const importJSON = (file) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           try {
             const data = JSON.parse(e.target.result);
-            if (!Array.isArray(data))
-              throw "Invalid file: Data should be an array.";
-
-            positions.forEach((p) => {
-              if (p.chartInstance) p.chartInstance.destroy();
-            });
+            if (!Array.isArray(data)) throw "Invalid file.";
+            positions.forEach((p) => p.chartInstance?.destroy());
             $("allChartsDisplayArea").innerHTML = "";
             selectedId = null;
-
             positions = data.map((p) => ({ ...p, chartInstance: null }));
-
             refreshAllChartsAndTable();
             $("updateSection").style.display = "none";
           } catch (err) {
