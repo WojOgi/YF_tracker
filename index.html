@@ -104,10 +104,10 @@
         background: #262626;
       }
 
-      /* ───── CHART & STATS (Individual Item) ───── */
+      /* ───── CHART & STATS ───── */
       .chart-item {
         margin-bottom: 30px;
-        max-width: 50%; /* 50 % width (reduced horizontally) */
+        max-width: 50%;
         margin-left: auto;
         margin-right: auto;
       }
@@ -174,6 +174,7 @@
               <th>Start</th>
               <th>Last Value</th>
               <th>Last Yield</th>
+              <th>APY %</th>
               <th>Last Update</th>
               <th>Actions</th>
             </tr>
@@ -249,17 +250,31 @@
       function buildRow(p) {
         const tr = document.createElement("tr");
         if (p.id === selectedId) tr.style.backgroundColor = "#333";
+
         const last = p.updates.at(-1);
+        const lastVal = last ? last.value : p.initialValue;
+        const lastYld = last ? last.pendingYield : 0;
+        const lastTime = last ? last.time : Date.now();
+
+        /* ---- APY calculation ---- */
+        const daysHeld = (lastTime - new Date(p.startDate).getTime()) / 864e5;
+        const apyPct =
+          daysHeld > 0 && p.initialValue > 0
+            ? (lastYld / p.initialValue) * (365 / daysHeld) * 100
+            : NaN;
+
         tr.innerHTML = `
           <td>${p.name}</td>
           <td>${fmt(p.initialValue)}</td>
           <td>${new Date(p.startDate).toLocaleString()}</td>
-          <td>${fmt(last ? last.value : p.initialValue)}</td>
-          <td>${fmt(last ? last.pendingYield : 0)}</td>
-          <td>${last ? new Date(last.time).toLocaleString() : "—"}</td>
+          <td>${fmt(lastVal)}</td>
+          <td>${fmt(lastYld)}</td>
+          <td>${isFinite(apyPct) ? apyPct.toFixed(2) + "%" : "—"}</td>
+          <td>${last ? new Date(lastTime).toLocaleString() : "—"}</td>
           <td></td>`; // actions holder
 
-        const actionButtonsCell = tr.cells[6];
+        /* ---- action buttons ---- */
+        const actionButtonsCell = tr.cells[7];
         const updateBtn = Object.assign(document.createElement("button"), {
           textContent: "Update",
           onclick: () => openUpdate(p.id),
@@ -273,31 +288,37 @@
         return tr;
       }
 
-      /* ───── REFRESH TABLE (now with totals) ───── */
+      /* ───── REFRESH TABLE ───── */
       const refreshTable = () => {
         const tbody = $("positionsTable").querySelector("tbody");
         tbody.innerHTML = "";
 
-        let totalPortfolio = 0,
+        let totalInitial = 0,
+          totalPortfolio = 0,
           totalYield = 0;
+
         positions.forEach((p) => {
           const last = p.updates.at(-1);
           const lastVal = last ? last.value : p.initialValue;
           const lastYld = last ? last.pendingYield : 0;
+
+          totalInitial += p.initialValue;
           totalPortfolio += lastVal;
           totalYield += lastYld;
+
           tbody.appendChild(buildRow(p));
         });
 
-        /* ───── TOTALS ROW ───── */
+        /* ---- TOTAL ROW ---- */
         const totalRow = document.createElement("tr");
         totalRow.className = "total-row";
         totalRow.innerHTML = `
           <td>TOTAL</td>
-          <td></td>
+          <td>${fmt(totalInitial)}</td>
           <td></td>
           <td>${fmt(totalPortfolio)}</td>
           <td>${fmt(totalYield)}</td>
+          <td></td>
           <td></td>
           <td></td>`;
         tbody.appendChild(totalRow);
